@@ -1,0 +1,1638 @@
+{
+  "openapi": "3.0.0",
+  "servers": [
+    {
+      "url": "https://resume-parser.affinda.com/public/api/v1"
+    }
+  ],
+  "info": {
+    "description": "# Suggested Workflow\nTo parse a resume:\n- obtain an [API key](https://affinda.com/resume-parser)\n- `POST` to the [/documents](#operation/createDocument) endpoint to upload either a .docx, or .pdf file, or supply a URL to a .docx or .pdf file.\n- After a successful upload, an `identifier` will be returned which is then used in a `GET` request to the [/documents/{identifier}](#operation/getDocument) endpoint.\n- Polling this endpoint during processing will allow checking of the status of processing via accessing the `meta.ready` property of the return object.\n- When this property is true the `data` property will be completed with the parsed document data.\n\nTo delete a document, use the [/documents/{identifier}](#operation/deleteDocument) endpoint.\n\nTo list all documents uploaded by the the authenticated user, use the [/documents/](#operation/getAllDocuments) endpoint with a `GET` request.",
+    "version": "v1",
+    "title": "Affinda Resume Parser and Redactor Documentation",
+    "contact": {
+      "email": "contact@affinda.com"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "x-logo": {
+      "url": "https://resume-parser.affinda.com/static/documentation/affinda_logo_black.png",
+      "backgroundColor": "#FFFFFF",
+      "altText": "Affinda logo"
+    }
+  },
+  "tags": [
+    {
+      "name": "Parser",
+      "description": "Operations available to perform on parsed documents"
+    },
+    {
+      "name": "Redactor",
+      "description": "Operations available to perform on redacted documents"
+    },
+    {
+      "name": "Reformatter",
+      "description": "Operations available to perform on reformatted documents"
+    }
+  ],
+  "x-tagGroups": [
+    {
+      "name": "Resumes",
+      "tags": [
+        "Parser",
+        "Redactor",
+        "Reformatter"
+      ]
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "paths": {
+    "/documents/": {
+      "get": {
+        "tags": [
+          "Parser"
+        ],
+        "summary": "Gets summary information for all documents of a user",
+        "operationId": "getAllDocuments",
+        "description": "Returns all the document summaries for that user, limited to 300 per page.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/limitParam"
+          },
+          {
+            "$ref": "#/components/parameters/offsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "All documents for user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "next": {
+                      "type": "string",
+                      "format": "url",
+                      "nullable": true
+                    },
+                    "previous": {
+                      "type": "string",
+                      "format": "url",
+                      "nullable": true
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Meta"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/401Error"
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\ntoken = \"REPLACE_TOKEN\"\n\nurl = \"https://resume-parser.affinda.com/public/api/v1/documents\"\n\nheaders = {\"Authorization\": f\"Bearer {token}\"}\n\nresponse = requests.get(url, headers=headers)\n\nprint(response.json())\n"
+          },
+          {
+            "lang": "Shell + curl",
+            "source": "TOKEN=\"REPLACE_TOKEN\"\n\ncurl --request GET --location \\\n  --url \"https://resume-parser.affinda.com/public/api/v1/documents\" \\\n  --header \"Authorization: Bearer $TOKEN\"\n"
+          },
+          {
+            "lang": "Node JS",
+            "source": "const request = require('request');\n\ntoken = 'REPLACE_TOKEN';\n\nrequest('https://resume-parser.affinda.com/public/api/v1/documents', {\n    json: true,\n    headers: { 'Authorization': `Bearer ${token}` }\n}, (err, res, body) => {\n    if (err) { return console.log(err); }\n    console.log(body);\n});"
+          },
+          {
+            "lang": "Javascript",
+            "source": "token = 'REPLACE_TOKEN';\n\nfetch('https://resume-parser.affinda.com/public/api/v1/documents/', {\n    method: 'GET',\n    headers: {\n        'Authorization': `Bearer ${token}`,\n        'Accept': 'application/json',\n        'Content-Type': 'application/json',\n    }\n}).then(r => r.json()).then(r => console.log(r))\n"
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Parser"
+        ],
+        "summary": "Uploads a document for parsing",
+        "operationId": "createDocument",
+        "description": "Uploads a document for parsing.\nWhen successful, returns an `identifier` in the response for subsequent use with the [/documents/{identifier}](#operation/getDocument) endpoint to check processing status and retrieve results.",
+        "responses": {
+          "201": {
+            "description": "Document uploaded and identifier created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "fileName": {
+                      "type": "string",
+                      "example": "TimSmithResume.pdf",
+                      "nullable": true
+                    },
+                    "identifier": {
+                      "type": "string",
+                      "example": "EUglqBoT"
+                    }
+                  }
+                }
+              }
+            },
+            "x-summary": "Document uploaded and created, use identifier to poll for processing status"
+          },
+          "400": {
+            "$ref": "#/components/responses/ConversionError"
+          },
+          "401": {
+            "$ref": "#/components/responses/401Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "requestBody": {
+          "description": "Resume document to upload, either via fileupload or URL to a file",
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "fileName": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "url"
+                  },
+                  "resumeLanguage": {
+                    "type": "string",
+                    "description": "Language code in ISO 639-1 format. Must specify zh-cn or zh-tw for Chinese."
+                  },
+                  "expiryTime": {
+                    "type": "string",
+                    "description": "The date/time in ISO-8601 format when the document will be automatically deleted.  Defaults to no expiry."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "from pathlib import Path\n\nimport requests\n\nFILE_TO_UPLOAD_PATH = Path(\"path/to/file\")\n\nurl = \"https://resume-parser.affinda.com/public/api/v1/documents/\"\n\ntoken = \"REPLACE_TOKEN\"\n\nheaders = {\"Authorization\": f\"Bearer {token}\"}\n\nwith open(FILE_TO_UPLOAD_PATH, \"rb\") as doc_file:\n    response = requests.post(\n        url,\n        data={\"fileName\": FILE_TO_UPLOAD_PATH.name},\n        files={\"file\": doc_file},\n        headers=headers,\n    )\n\nprint(response.json())\n"
+          },
+          {
+            "lang": "Shell + curl",
+            "source": "TOKEN=\"REPLACE_TOKEN\"\n\nPATH_TO_FILE=\"/path/to/file.pdf\"\n\ncurl --request POST \"https://resume-parser.affinda.com/public/api/v1/documents/\" \\\n  --location --compressed \\\n  --header \"Authorization: Bearer $TOKEN\" \\\n  --header \"Accept-Encoding: gzip, deflate\" \\\n  --header \"Content-Type: multipart/form-data\" \\\n  --form \"file=@$PATH_TO_FILE\" \\\n  --header \"accept: */*\" \\\n"
+          },
+          {
+            "lang": "Node JS",
+            "source": "const request = require('request');\n\nlet token = 'REPLACE_TOKEN'\n\n// With URL\nrequest.post('https://resume-parser.affinda.com/public/api/v1/documents/', {\n  json: true,\n  headers: { 'Authorization': `Bearer ${token}` },\n  body: { 'url': 'https://resume-parser.affinda.com/static/sample_resumes/example.pdf' }\n}, (err, res, body) => {\n  if (err) { return console.log(err); }\n  console.log(body);\n});\n"
+          },
+          {
+            "lang": "Javascript",
+            "source": "let token = 'REPLACE_TOKEN'\n\n// With URL as input\n\nfetch('https://resume-parser.affinda.com/public/api/v1/documents/', {\n  method: 'POST',\n  headers: {\n    'Authorization': `Bearer ${token}`,\n    'Accept': 'application/json',\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({ url: 'https://resume-parser.affinda.com/static/sample_resumes/example.pdf' }),\n}).then(r => r.json()).then(r => console.log(r))\n\n\n// With an uploaded file from a form, e.g.\n// <input type=\"file\"/>\n// <button onclick=\"onUpload()\">Upload</button>\n\nfunction onUpload () {\n  const fileInput = document.querySelector('input') ;\n  const formData = new FormData()\n  formData.append('file', fileInput.files[0]);\n  formData.append('fileName', 'myCustomFilename.pdf')\n\n  fetch('https://resume-parser.affinda.com/public/api/v1/documents/', {\n      method: 'POST',\n      headers: {\n        'Authorization': `Bearer ${token}`,\n        'Accept': 'application/json',\n        // If you add this, upload won't work\n        // 'Content-Type': 'multipart/form-data'\n      },\n      body: formData,\n    }).then(r => r.json()).then(r => console.log(r))\n\n}\n"
+          }
+        ]
+      }
+    },
+    "/documents/{identifier}": {
+      "get": {
+        "tags": [
+          "Parser"
+        ],
+        "summary": "Gets parse results for a specific document",
+        "operationId": "getDocument",
+        "description": "Returns all the parse results for that document if processing is completed.\nThe `identifier` is the unique ID returned after POST-ing the document via the [/documents](#operation/createDocument) endpoint.",
+        "parameters": [
+          {
+            "in": "path",
+            "required": true,
+            "name": "identifier",
+            "description": "Document identifier",
+            "schema": {
+              "type": "string",
+              "example": "EUglqBoT"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Document"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/401Error"
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nidentifier = \"REPLACE_IDENTIFIER\"\n\ntoken = \"REPLACE_TOKEN\"\n\nurl = f\"https://resume-parser.affinda.com/public/api/v1/documents/{identifier}\"\n\nheaders = {\"Authorization\": f\"Bearer {token}\"}\n\nresponse = requests.get(url, headers=headers)\n\nprint(response.json())\n"
+          },
+          {
+            "lang": "Shell + curl",
+            "source": "TOKEN=\"REPLACE_TOKEN\"\nIDENTIFIER=\"REPLACE_IDENTIFIER\"\n\ncurl --request GET --location \\\n  --url \"https://resume-parser.affinda.com/public/api/v1/documents/$IDENTIFIER\" \\\n  --header \"Authorization: Bearer $TOKEN\"\n"
+          },
+          {
+            "lang": "Node JS",
+            "source": "const request = require('request');\n\nlet token = 'REPLACE_TOKEN'\nlet identifier = 'REPLACE_IDENTIFIER'\n\nrequest.get(`https://resume-parser.affinda.com/public/api/v1/documents/${identifier}`, {\n  json: true,\n  headers: { 'Authorization': `Bearer ${token}` }\n}, (err, res, body) => {\n  if (err) { return console.log(err); }\n  console.log(body);\n});\n"
+          },
+          {
+            "lang": "Javascript",
+            "source": "let token = 'REPLACE_TOKEN'\n\nlet identifier = 'REPLACE_IDENTIFIER'\n\nfetch(`https://resume-parser.affinda.com/public/api/v1/documents/${identifier}`,\n  {\n    method: 'GET',\n    headers: {\n      'Authorization': `Bearer ${token}`,\n      'Accept': 'application/json',\n      'Content-Type': 'application/json',\n    },\n  }).then(r => r.json()).then(r => console.log(r))\n"
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Parser"
+        ],
+        "summary": "Deletes a document",
+        "operationId": "deleteDocument",
+        "description": "Deletes the specified document from the database",
+        "parameters": [
+          {
+            "in": "path",
+            "required": true,
+            "name": "identifier",
+            "description": "Document identifier",
+            "schema": {
+              "type": "string",
+              "example": "EUglqBoT"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/204NoContent"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/401Error"
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nidentifier = \"REPLACE_IDENTIFIER\"\n\ntoken = \"REPLACE_TOKEN\"\n\nurl = f\"https://resume-parser.affinda.com/public/api/v1/documents/{identifier}\"\n\nheaders = {\"Authorization\": f\"Bearer {token}\"}\n\nresponse = requests.delete(url, headers=headers)\n"
+          },
+          {
+            "lang": "Shell + curl",
+            "source": "TOKEN=\"REPLACE_TOKEN\"\nIDENTIFIER=\"REPLACE_IDENTIFIER\"\n\ncurl --request DELETE --location \\\n  --url \"https://resume-parser.affinda.com/public/api/v1/documents/$IDENTIFIER\" \\\n  --header \"Authorization: Bearer $TOKEN\"\n"
+          },
+          {
+            "lang": "Node JS",
+            "source": "const request = require('request');\n\nlet token = 'REPLACE_TOKEN'\nlet identifier = 'REPLACE_IDENTIFIER'\n\nrequest.delete(`https://resume-parser.affinda.com/public/api/v1/documents/${identifier}/`, {\n  json: true,\n  headers: { 'Authorization': `Bearer ${token}` },\n}, (err, res, body) => {\n  if (err) { return console.log(err); }\n  console.log(body);\n});"
+          },
+          {
+            "lang": "Javascript",
+            "source": "let token = 'REPLACE_TOKEN'\n\nlet identifier = 'REPLACE_IDENTIFIER'\n\nfetch(`https://resume-parser.affinda.com/public/api/v1/documents/${identifier}`, {\n  method: 'DELETE',\n  headers: {\n    'Authorization': `Bearer ${token}`,\n    'Accept': 'application/json',\n    'Content-Type': 'application/json',\n  }\n})\n"
+          }
+        ]
+      }
+    },
+    "/redacted_documents/": {
+      "get": {
+        "tags": [
+          "Redactor"
+        ],
+        "summary": "Gets summary information for all redacted documents of a user",
+        "operationId": "getAllRedactedDocuments",
+        "description": "Returns all the redacted document information for that document",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/limitParam"
+          },
+          {
+            "$ref": "#/components/parameters/offsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "All redacted documents for user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "next": {
+                      "type": "string",
+                      "format": "url",
+                      "nullable": true
+                    },
+                    "previous": {
+                      "type": "string",
+                      "format": "url",
+                      "nullable": true
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Meta"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/401Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\ntoken = \"REPLACE_TOKEN\"\n\nurl = \"https://resume-parser.affinda.com/public/api/v1/redacted_documents\"\n\nheaders = {\"Authorization\": f\"Bearer {token}\"}\n\nresponse = requests.get(url, headers=headers)\n\nprint(response.json())\n"
+          },
+          {
+            "lang": "Shell + curl",
+            "source": "TOKEN=\"REPLACE_TOKEN\"\n\ncurl --request GET --location \\\n  --url \"https://resume-parser.affinda.com/public/api/v1/redacted_documents\" \\\n  --header \"Authorization: Bearer $TOKEN\"\n"
+          },
+          {
+            "lang": "Node JS",
+            "source": "const request = require('request');\n\ntoken = 'REPLACE_TOKEN';\n\nrequest('https://resume-parser.affinda.com/public/api/v1/redacted_documents', {\n    json: true,\n    headers: { 'Authorization': `Bearer ${token}` }\n}, (err, res, body) => {\n    if (err) { return console.log(err); }\n    console.log(body);\n});"
+          },
+          {
+            "lang": "Javascript",
+            "source": "token = 'REPLACE_TOKEN';\n\nfetch('https://resume-parser.affinda.com/public/api/v1/redacted_documents/', {\n    method: 'GET',\n    headers: {\n        'Authorization': `Bearer ${token}`,\n        'Accept': 'application/json',\n        'Content-Type': 'application/json',\n    }\n}).then(r => r.json()).then(r => console.log(r))\n"
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Redactor"
+        ],
+        "summary": "Uploads a document for redacting",
+        "operationId": "createRedactedDocument",
+        "description": "Uploads a document for redacting.\nWhen successful, returns an `identifier` in the response for subsequent use with the [/redacted_documents/{identifier}](#operation/getRedactedDocument) endpoint to check processing status and retrieve results.",
+        "responses": {
+          "201": {
+            "description": "Document uploaded and identifier created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "fileName": {
+                      "type": "string",
+                      "example": "TimSmithResume.pdf",
+                      "nullable": true
+                    },
+                    "identifier": {
+                      "type": "string",
+                      "example": "EUglqBoT"
+                    }
+                  }
+                }
+              }
+            },
+            "x-summary": "Document uploaded and created, use identifier to poll for processing status",
+            "links": {
+              "GetRedactedDocumentByIdentifier": {
+                "operationId": "getRedactedDocument",
+                "parameters": {
+                  "userId": "$response.body#/meta/identifier"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ConversionError"
+          },
+          "401": {
+            "$ref": "#/components/responses/401Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "requestBody": {
+          "description": "Resume document to upload, either via fileupload or URL to a file",
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "fileName": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "url"
+                  },
+                  "resumeLanguage": {
+                    "type": "string",
+                    "description": "Language code in ISO 639-1 format. Must specify zh-cn or zh-tw for Chinese."
+                  },
+                  "redactHeadshot": {
+                    "type": "boolean",
+                    "description": "Whether to redact headshot",
+                    "default": true
+                  },
+                  "redactPersonalDetails": {
+                    "type": "boolean",
+                    "description": "Whether to redact personal details (e.g. name, address)",
+                    "default": true
+                  },
+                  "redactWorkDetails": {
+                    "type": "boolean",
+                    "description": "Whether to redact work details (e.g. company names)",
+                    "default": true
+                  },
+                  "redactEducationDetails": {
+                    "type": "boolean",
+                    "description": "Whether to redact education details (e.g. university names)",
+                    "default": true
+                  },
+                  "redactReferees": {
+                    "type": "boolean",
+                    "description": "Whether to redact referee details",
+                    "default": true
+                  },
+                  "redactLocations": {
+                    "type": "boolean",
+                    "description": "Whether to redact location names",
+                    "default": true
+                  },
+                  "redactDates": {
+                    "type": "boolean",
+                    "description": "Whether to redact dates",
+                    "default": true
+                  },
+                  "expiryTime": {
+                    "type": "string",
+                    "description": "The date/time in ISO-8601 format when the document will be automatically deleted.  Defaults to no expiry."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "from pathlib import Path\n\nimport requests\n\nFILE_TO_UPLOAD_PATH = Path(\"path/to/file\")\n\nurl = \"https://resume-parser.affinda.com/public/api/v1/redacted_documents/\"\n\ntoken = \"REPLACE_TOKEN\"\n\nheaders = {\"Authorization\": f\"Bearer {token}\"}\n\nwith open(FILE_TO_UPLOAD_PATH, \"rb\") as doc_file:\n    response = requests.post(\n        url,\n        data={\"fileName\": FILE_TO_UPLOAD_PATH.name},\n        files={\"file\": doc_file},\n        headers=headers,\n    )\n\nprint(response.json())\n"
+          },
+          {
+            "lang": "Shell + curl",
+            "source": "TOKEN=\"REPLACE_TOKEN\"\n\nPATH_TO_FILE=\"/path/to/file.pdf\"\n\ncurl --request POST \"https://resume-parser.affinda.com/public/api/v1/redacted_documents/\" \\\n  --location --compressed \\\n  --header \"Authorization: Bearer $TOKEN\" \\\n  --header \"Accept-Encoding: gzip, deflate\" \\\n  --header \"Content-Type: multipart/form-data\" \\\n  --form \"file=@$PATH_TO_FILE\" \\\n  --header \"accept: */*\" \\\n"
+          },
+          {
+            "lang": "Node JS",
+            "source": "const request = require('request');\n\nlet token = 'REPLACE_TOKEN'\n\n// With URL\nrequest.post('https://resume-parser.affinda.com/public/api/v1/redacted_documents/', {\n  json: true,\n  headers: { 'Authorization': `Bearer ${token}` },\n  body: { 'url': 'https://resume-parser.affinda.com/static/sample_resumes/example.pdf' }\n}, (err, res, body) => {\n  if (err) { return console.log(err); }\n  console.log(body);\n});\n"
+          },
+          {
+            "lang": "Javascript",
+            "source": "let token = 'REPLACE_TOKEN'\n\n// With URL as input\n\nfetch('https://resume-parser.affinda.com/public/api/v1/redacted_documents/', {\n  method: 'POST',\n  headers: {\n    'Authorization': `Bearer ${token}`,\n    'Accept': 'application/json',\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({ url: 'https://resume-parser.affinda.com/static/sample_resumes/example.pdf' }),\n}).then(r => r.json()).then(r => console.log(r))\n\n\n// With an uploaded file from a form, e.g.\n// <input type=\"file\"/>\n// <button onclick=\"onUpload()\">Upload</button>\n\nfunction onUpload () {\n  const fileInput = document.querySelector('input') ;\n  const formData = new FormData()\n  formData.append('file', fileInput.files[0]);\n  formData.append('fileName', 'myCustomFilename.pdf')\n\n  fetch('https://resume-parser.affinda.com/public/api/v1/redacted_documents/', {\n      method: 'POST',\n      headers: {\n        'Authorization': `Bearer ${token}`,\n        'Accept': 'application/json',\n        // If you add this, upload won't work\n        // 'Content-Type': 'multipart/form-data'\n      },\n      body: formData,\n    }).then(r => r.json()).then(r => console.log(r))\n\n}\n"
+          }
+        ]
+      }
+    },
+    "/redacted_documents/{identifier}": {
+      "get": {
+        "tags": [
+          "Redactor"
+        ],
+        "summary": "Gets redaction results for a specific document",
+        "operationId": "getRedactedDocument",
+        "description": "Returns all the redaction results for that document if processing is completed.\nThe `identifier` is the unique ID returned after POST-ing the document via the [/redacted_documents](#operation/createRedactedDocument) endpoint.",
+        "parameters": [
+          {
+            "in": "path",
+            "required": true,
+            "name": "identifier",
+            "description": "Document identifier",
+            "schema": {
+              "type": "string",
+              "example": "EUglqBoT"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedactedDocument"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/401Error"
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nidentifier = \"REPLACE_IDENTIFIER\"\n\ntoken = \"REPLACE_TOKEN\"\n\nurl = f\"https://resume-parser.affinda.com/public/api/v1/redacted_documents/{identifier}\"\n\nheaders = {\"Authorization\": f\"Bearer {token}\"}\n\nresponse = requests.get(url, headers=headers)\n\nprint(response.json())\n"
+          },
+          {
+            "lang": "Shell + curl",
+            "source": "TOKEN=\"REPLACE_TOKEN\"\nIDENTIFIER=\"REPLACE_IDENTIFIER\"\n\ncurl --request GET --location \\\n  --url \"https://resume-parser.affinda.com/public/api/v1/redacted_documents/$IDENTIFIER\" \\\n  --header \"Authorization: Bearer $TOKEN\"\n"
+          },
+          {
+            "lang": "Node JS",
+            "source": "const request = require('request');\n\nlet token = 'REPLACE_TOKEN'\nlet identifier = 'REPLACE_IDENTIFIER'\n\nrequest.get(`https://resume-parser.affinda.com/public/api/v1/redacted_documents/${identifier}`, {\n  json: true,\n  headers: { 'Authorization': `Bearer ${token}` }\n}, (err, res, body) => {\n  if (err) { return console.log(err); }\n  console.log(body);\n});\n"
+          },
+          {
+            "lang": "Javascript",
+            "source": "let token = 'REPLACE_TOKEN'\n\nlet identifier = 'REPLACE_IDENTIFIER'\n\nfetch(`https://resume-parser.affinda.com/public/api/v1/redacted_documents/${identifier}`,\n  {\n    method: 'GET',\n    headers: {\n      'Authorization': `Bearer ${token}`,\n      'Accept': 'application/json',\n      'Content-Type': 'application/json',\n    },\n  }).then(r => r.json()).then(r => console.log(r))\n"
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Redactor"
+        ],
+        "summary": "Deletes a redacted document",
+        "operationId": "deleteRedactedDocument",
+        "description": "Deletes the specified document from the database",
+        "parameters": [
+          {
+            "in": "path",
+            "required": true,
+            "name": "identifier",
+            "description": "Document identifier",
+            "schema": {
+              "type": "string",
+              "example": "EUglqBoT"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/204NoContent"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/401Error"
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nidentifier = \"REPLACE_IDENTIFIER\"\n\ntoken = \"REPLACE_TOKEN\"\n\nurl = f\"https://resume-parser.affinda.com/public/api/v1/redacted_documents/{identifier}\"\n\nheaders = {\"Authorization\": f\"Bearer {token}\"}\n\nresponse = requests.delete(url, headers=headers)\n"
+          },
+          {
+            "lang": "Shell + curl",
+            "source": "TOKEN=\"REPLACE_TOKEN\"\nIDENTIFIER=\"REPLACE_IDENTIFIER\"\n\ncurl --request DELETE --location \\\n  --url \"https://resume-parser.affinda.com/public/api/v1/redacted_documents/$IDENTIFIER\" \\\n  --header \"Authorization: Bearer $TOKEN\"\n"
+          },
+          {
+            "lang": "Node JS",
+            "source": "const request = require('request');\n\nlet token = 'REPLACE_TOKEN'\nlet identifier = 'REPLACE_IDENTIFIER'\n\nrequest.delete(`https://resume-parser.affinda.com/public/api/v1/redacted_documents/${identifier}/`, {\n  json: true,\n  headers: { 'Authorization': `Bearer ${token}` },\n}, (err, res, body) => {\n  if (err) { return console.log(err); }\n  console.log(body);\n});"
+          },
+          {
+            "lang": "Javascript",
+            "source": "let token = 'REPLACE_TOKEN'\n\nlet identifier = 'REPLACE_IDENTIFIER'\n\nfetch(`https://resume-parser.affinda.com/public/api/v1/redacted_documents/${identifier}`, {\n  method: 'DELETE',\n  headers: {\n    'Authorization': `Bearer ${token}`,\n    'Accept': 'application/json',\n    'Content-Type': 'application/json',\n  }\n})\n"
+          }
+        ]
+      }
+    },
+    "/resume_formats/": {
+      "get": {
+        "tags": [
+          "Reformatter"
+        ],
+        "summary": "Gets summary information for all resume formats of a user",
+        "operationId": "getAllResumeFormats",
+        "description": "Returns all the resume formats",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/limitParam"
+          },
+          {
+            "$ref": "#/components/parameters/offsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "All resume formats for user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "next": {
+                      "type": "string",
+                      "format": "url",
+                      "nullable": true
+                    },
+                    "previous": {
+                      "type": "string",
+                      "format": "url",
+                      "nullable": true
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "identifier",
+                          "formatFile"
+                        ],
+                        "properties": {
+                          "identifier": {
+                            "type": "string",
+                            "example": "EUglqBoT"
+                          },
+                          "formatFile": {
+                            "type": "string",
+                            "format": "url",
+                            "example": "https://api-data.affinda.com/media/resume_formats/Example-Resume-Template.docx"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/401Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\ntoken = \"REPLACE_TOKEN\"\n\nurl = \"https://resume-parser.affinda.com/public/api/v1/resume_formats\"\n\nheaders = {\"Authorization\": f\"Bearer {token}\"}\n\nresponse = requests.get(url, headers=headers)\n\nprint(response.json())\n"
+          },
+          {
+            "lang": "Shell + curl",
+            "source": "TOKEN=\"REPLACE_TOKEN\"\n\ncurl --request GET --location \\\n  --url \"https://resume-parser.affinda.com/public/api/v1/resume_formats\" \\\n  --header \"Authorization: Bearer $TOKEN\"\n"
+          },
+          {
+            "lang": "Node JS",
+            "source": "const request = require('request');\n\ntoken = 'REPLACE_TOKEN';\n\nrequest('https://resume-parser.affinda.com/public/api/v1/resume_formats', {\n    json: true,\n    headers: { 'Authorization': `Bearer ${token}` }\n}, (err, res, body) => {\n    if (err) { return console.log(err); }\n    console.log(body);\n});"
+          },
+          {
+            "lang": "Javascript",
+            "source": "token = 'REPLACE_TOKEN';\n\nfetch('https://resume-parser.affinda.com/public/api/v1/resume_formats/', {\n    method: 'GET',\n    headers: {\n        'Authorization': `Bearer ${token}`,\n        'Accept': 'application/json',\n        'Content-Type': 'application/json',\n    }\n}).then(r => r.json()).then(r => console.log(r))\n"
+          }
+        ]
+      }
+    },
+    "/reformatted_resumes/": {
+      "get": {
+        "tags": [
+          "Reformatter"
+        ],
+        "summary": "Gets summary information for all reformatted documents of a user",
+        "operationId": "getAllReformattedDocuments",
+        "description": "Returns all the reformatted document information for that document",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/limitParam"
+          },
+          {
+            "$ref": "#/components/parameters/offsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "All reformatted documents for user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "next": {
+                      "type": "string",
+                      "format": "url",
+                      "nullable": true
+                    },
+                    "previous": {
+                      "type": "string",
+                      "format": "url",
+                      "nullable": true
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Meta"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/401Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\ntoken = \"REPLACE_TOKEN\"\n\nurl = \"https://resume-parser.affinda.com/public/api/v1/reformatted_resumes\"\n\nheaders = {\"Authorization\": f\"Bearer {token}\"}\n\nresponse = requests.get(url, headers=headers)\n\nprint(response.json())\n"
+          },
+          {
+            "lang": "Shell + curl",
+            "source": "TOKEN=\"REPLACE_TOKEN\"\n\ncurl --request GET --location \\\n  --url \"https://resume-parser.affinda.com/public/api/v1/reformatted_resumes\" \\\n  --header \"Authorization: Bearer $TOKEN\"\n"
+          },
+          {
+            "lang": "Node JS",
+            "source": "const request = require('request');\n\ntoken = 'REPLACE_TOKEN';\n\nrequest('https://resume-parser.affinda.com/public/api/v1/reformatted_resumes', {\n    json: true,\n    headers: { 'Authorization': `Bearer ${token}` }\n}, (err, res, body) => {\n    if (err) { return console.log(err); }\n    console.log(body);\n});"
+          },
+          {
+            "lang": "Javascript",
+            "source": "token = 'REPLACE_TOKEN';\n\nfetch('https://resume-parser.affinda.com/public/api/v1/reformatted_resumes/', {\n    method: 'GET',\n    headers: {\n        'Authorization': `Bearer ${token}`,\n        'Accept': 'application/json',\n        'Content-Type': 'application/json',\n    }\n}).then(r => r.json()).then(r => console.log(r))\n"
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Reformatter"
+        ],
+        "summary": "Uploads a document for reformatting",
+        "operationId": "createReformattedDocument",
+        "description": "Uploads a document for reformatting.\nWhen successful, returns an `identifier` in the response for subsequent use with the [/reformatted_resumes/{identifier}](#operation/getReformattedDocument) endpoint to check processing status and retrieve results.",
+        "responses": {
+          "201": {
+            "description": "Document uploaded and identifier created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "fileName": {
+                      "type": "string",
+                      "example": "TimSmithResume.pdf",
+                      "nullable": true
+                    },
+                    "identifier": {
+                      "type": "string",
+                      "example": "EUglqBoT"
+                    },
+                    "resumeFormat": {
+                      "type": "string",
+                      "description": "Identifier of the format used",
+                      "example": "iRBSptwK"
+                    }
+                  }
+                }
+              }
+            },
+            "x-summary": "Document uploaded and created, use identifier to poll for processing status",
+            "links": {
+              "GetReformattedDocumentByIdentifier": {
+                "operationId": "getReformattedDocument",
+                "parameters": {
+                  "userId": "$response.body#/meta/identifier"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ConversionError"
+          },
+          "401": {
+            "$ref": "#/components/responses/401Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          }
+        },
+        "requestBody": {
+          "description": "Resume document to upload, either via fileupload or URL to a file",
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "resumeFormat"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "fileName": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "url"
+                  },
+                  "resumeLanguage": {
+                    "type": "string",
+                    "description": "Language code in ISO 639-1 format. Must specify zh-cn or zh-tw for Chinese."
+                  },
+                  "resumeFormat": {
+                    "type": "string",
+                    "description": "Identifier for the resume format to be used."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "from pathlib import Path\n\nimport requests\n\nFILE_TO_UPLOAD_PATH = Path(\"path/to/file\")\n\nurl = \"https://resume-parser.affinda.com/public/api/v1/reformatted_resumes/\"\n\ntoken = \"REPLACE_TOKEN\"\nresumeFormat = \"REPLACE_FORMAT_IDENTIFIER\"\n\nheaders = {\"Authorization\": f\"Bearer {token}\"}\n\nwith open(FILE_TO_UPLOAD_PATH, \"rb\") as doc_file:\n    response = requests.post(\n        url,\n        data={\"fileName\": FILE_TO_UPLOAD_PATH.name, \"resumeFormat\": resumeFormat},\n        files={\"file\": doc_file},\n        headers=headers,\n    )\n\nprint(response.json())\n"
+          },
+          {
+            "lang": "Shell + curl",
+            "source": "TOKEN=\"REPLACE_TOKEN\"\nRESUME_FORMAT = \"REPLACE_FORMAT_IDENTIFIER\"\n\nPATH_TO_FILE=\"/path/to/file.pdf\"\n\ncurl --request POST \"https://resume-parser.affinda.com/public/api/v1/reformatted_resumes/\" \\\n  --location --compressed \\\n  --header \"Authorization: Bearer $TOKEN\" \\\n  --header \"Accept-Encoding: gzip, deflate\" \\\n  --header \"Content-Type: multipart/form-data\" \\\n  --form \"file=@$PATH_TO_FILE\" \\\n  --form \"resumeFormat=$RESUME_FORMAT\" \\\n  --header \"accept: */*\" \\\n"
+          },
+          {
+            "lang": "Node JS",
+            "source": "const request = require('request');\n\nlet token = 'REPLACE_TOKEN'\nlet resumeFormat = 'REPLACE_FORMAT_IDENTIFIER'\n\n// With URL\nrequest.post('https://resume-parser.affinda.com/public/api/v1/reformatted_resumes/', {\n  json: true,\n  headers: { 'Authorization': `Bearer ${token}` },\n  body: { 'url': 'https://resume-parser.affinda.com/static/sample_resumes/example.pdf', 'resumeFormat': resumeFormat }\n}, (err, res, body) => {\n  if (err) { return console.log(err); }\n  console.log(body);\n});\n"
+          },
+          {
+            "lang": "Javascript",
+            "source": "let token = 'REPLACE_TOKEN'\nlet resumeFormat = 'REPLACE_FORMAT_IDENTIFIER'\n\n// With URL as input\n\nfetch('https://resume-parser.affinda.com/public/api/v1/reformatted_resumes/', {\n  method: 'POST',\n  headers: {\n    'Authorization': `Bearer ${token}`,\n    'Accept': 'application/json',\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({ url: 'https://resume-parser.affinda.com/static/sample_resumes/example.pdf', resumeFormat: resumeFormat }),\n}).then(r => r.json()).then(r => console.log(r))\n\n\n// With an uploaded file from a form, e.g.\n// <input type=\"file\"/>\n// <button onclick=\"onUpload()\">Upload</button>\n\nfunction onUpload () {\n  const fileInput = document.querySelector('input') ;\n  const formData = new FormData()\n  formData.append('file', fileInput.files[0]);\n  formData.append('fileName', 'myCustomFilename.pdf')\n  formData.append('resumeFormat', resumeFormat)\n\n  fetch('https://resume-parser.affinda.com/public/api/v1/reformatted_resumes/', {\n      method: 'POST',\n      headers: {\n        'Authorization': `Bearer ${token}`,\n        'Accept': 'application/json',\n        // If you add this, upload won't work\n        // 'Content-Type': 'multipart/form-data'\n      },\n      body: formData,\n    }).then(r => r.json()).then(r => console.log(r))\n\n}\n"
+          }
+        ]
+      }
+    },
+    "/reformatted_resumes/{identifier}": {
+      "get": {
+        "tags": [
+          "Reformatter"
+        ],
+        "summary": "Gets reformatting results for a specific document",
+        "operationId": "getReformattedDocument",
+        "description": "Returns all the reformatting results for that document if processing is completed.\nThe `identifier` is the unique ID returned after POST-ing the document via the [/reformatted_resumes](#operation/createReformattedDocument) endpoint.",
+        "parameters": [
+          {
+            "in": "path",
+            "required": true,
+            "name": "identifier",
+            "description": "Document identifier",
+            "schema": {
+              "type": "string",
+              "example": "EUglqBoT"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReformattedDocument"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/401Error"
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nidentifier = \"REPLACE_IDENTIFIER\"\n\ntoken = \"REPLACE_TOKEN\"\n\nurl = f\"https://resume-parser.affinda.com/public/api/v1/redacted_documents/{identifier}\"\n\nheaders = {\"Authorization\": f\"Bearer {token}\"}\n\nresponse = requests.get(url, headers=headers)\n\nprint(response.json())\n"
+          },
+          {
+            "lang": "Shell + curl",
+            "source": "TOKEN=\"REPLACE_TOKEN\"\nIDENTIFIER=\"REPLACE_IDENTIFIER\"\n\ncurl --request GET --location \\\n  --url \"https://resume-parser.affinda.com/public/api/v1/reformatted_resumes/$IDENTIFIER\" \\\n  --header \"Authorization: Bearer $TOKEN\"\n"
+          },
+          {
+            "lang": "Node JS",
+            "source": "const request = require('request');\n\nlet token = 'REPLACE_TOKEN'\nlet identifier = 'REPLACE_IDENTIFIER'\n\nrequest.get(`https://resume-parser.affinda.com/public/api/v1/reformatted_resumes/${identifier}`, {\n  json: true,\n  headers: { 'Authorization': `Bearer ${token}` }\n}, (err, res, body) => {\n  if (err) { return console.log(err); }\n  console.log(body);\n});\n"
+          },
+          {
+            "lang": "Javascript",
+            "source": "let token = 'REPLACE_TOKEN'\n\nlet identifier = 'REPLACE_IDENTIFIER'\n\nfetch(`https://resume-parser.affinda.com/public/api/v1/reformatted_resumes/${identifier}`,\n  {\n    method: 'GET',\n    headers: {\n      'Authorization': `Bearer ${token}`,\n      'Accept': 'application/json',\n      'Content-Type': 'application/json',\n    },\n  }).then(r => r.json()).then(r => console.log(r))\n"
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Reformatter"
+        ],
+        "summary": "Deletes a reformatted document",
+        "operationId": "deleteReformattedDocument",
+        "description": "Deletes the specified document from the database",
+        "parameters": [
+          {
+            "in": "path",
+            "required": true,
+            "name": "identifier",
+            "description": "Document identifier",
+            "schema": {
+              "type": "string",
+              "example": "EUglqBoT"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/204NoContent"
+          },
+          "404": {
+            "$ref": "#/components/responses/404Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/401Error"
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nidentifier = \"REPLACE_IDENTIFIER\"\n\ntoken = \"REPLACE_TOKEN\"\n\nurl = f\"https://resume-parser.affinda.com/public/api/v1/reformatted_resumes/{identifier}\"\n\nheaders = {\"Authorization\": f\"Bearer {token}\"}\n\nresponse = requests.delete(url, headers=headers)\n"
+          },
+          {
+            "lang": "Shell + curl",
+            "source": "TOKEN=\"REPLACE_TOKEN\"\nIDENTIFIER=\"REPLACE_IDENTIFIER\"\n\ncurl --request DELETE --location \\\n  --url \"https://resume-parser.affinda.com/public/api/v1/reformatted_resumes/$IDENTIFIER\" \\\n  --header \"Authorization: Bearer $TOKEN\"\n"
+          },
+          {
+            "lang": "Node JS",
+            "source": "const request = require('request');\n\nlet token = 'REPLACE_TOKEN'\nlet identifier = 'REPLACE_IDENTIFIER'\n\nrequest.delete(`https://resume-parser.affinda.com/public/api/v1/reformatted_resumes/${identifier}/`, {\n  json: true,\n  headers: { 'Authorization': `Bearer ${token}` },\n}, (err, res, body) => {\n  if (err) { return console.log(err); }\n  console.log(body);\n});"
+          },
+          {
+            "lang": "Javascript",
+            "source": "let token = 'REPLACE_TOKEN'\n\nlet identifier = 'REPLACE_IDENTIFIER'\n\nfetch(`https://resume-parser.affinda.com/public/api/v1/reformatted_resumes/${identifier}`, {\n  method: 'DELETE',\n  headers: {\n    'Authorization': `Bearer ${token}`,\n    'Accept': 'application/json',\n    'Content-Type': 'application/json',\n  }\n})\n"
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Document": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DocumentData"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          },
+          "errors": {
+            "$ref": "#/components/schemas/Error"
+          }
+        }
+      },
+      "RedactedDocument": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RedactedDocumentData"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          },
+          "errors": {
+            "$ref": "#/components/schemas/Error"
+          }
+        }
+      },
+      "ReformattedDocument": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ReformattedDocumentData"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          },
+          "errors": {
+            "$ref": "#/components/schemas/Error"
+          }
+        }
+      },
+      "Location": {
+        "type": "object",
+        "nullable": true,
+        "required": [
+          "rawInput"
+        ],
+        "properties": {
+          "formatted": {
+            "type": "string",
+            "example": "Blacksburg, VA, USA"
+          },
+          "postalCode": {
+            "type": "string",
+            "example": "3124",
+            "nullable": true
+          },
+          "state": {
+            "type": "string",
+            "example": "Virginia"
+          },
+          "country": {
+            "type": "string",
+            "example": "United States"
+          },
+          "rawInput": {
+            "type": "string",
+            "example": "Blacksburg, VA"
+          }
+        }
+      },
+      "DocumentData": {
+        "type": "object",
+        "nullable": true,
+        "properties": {
+          "name": {
+            "type": "object",
+            "properties": {
+              "raw": {
+                "type": "string",
+                "example": "Tim A. Smith"
+              },
+              "first": {
+                "type": "string",
+                "example": "Tim"
+              },
+              "last": {
+                "type": "string",
+                "example": "Smith"
+              },
+              "middle": {
+                "type": "string",
+                "example": "A."
+              },
+              "title": {
+                "type": "string",
+                "example": "Dr"
+              }
+            }
+          },
+          "phoneNumbers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "(704) 996-9966",
+              "+61412632636"
+            ]
+          },
+          "websites": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "aaa@linked.com"
+            ]
+          },
+          "emails": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "email"
+            },
+            "example": [
+              "timsmith@vt.edu"
+            ]
+          },
+          "dateOfBirth": {
+            "type": "string",
+            "example": "1992-01-01",
+            "nullable": true
+          },
+          "location": {
+            "$ref": "#/components/schemas/Location"
+          },
+          "objective": {
+            "type": "string"
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "English",
+              "French",
+              "Arabic"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "totalYearsExperience": {
+            "type": "integer"
+          },
+          "education": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "organization": {
+                  "type": "string",
+                  "example": "Virginia Polytechnic Institute and State University (Virginia Tech)"
+                },
+                "accreditation": {
+                  "type": "object",
+                  "properties": {
+                    "education": {
+                      "type": "string",
+                      "example": "Bachelor of Science"
+                    },
+                    "inputStr": {
+                      "type": "string",
+                      "example": "Bachelor of Science, Mechanical Engineering, expected"
+                    },
+                    "matchStr": {
+                      "type": "string",
+                      "example": "Bachelor of Science"
+                    },
+                    "educationLevel": {
+                      "type": "string",
+                      "example": "bachelors"
+                    }
+                  }
+                },
+                "grade": {
+                  "type": "object",
+                  "properties": {
+                    "raw": {
+                      "type": "string",
+                      "example": "GPA : 3.35"
+                    },
+                    "metric": {
+                      "type": "string",
+                      "example": "GPA"
+                    },
+                    "value": {
+                      "type": "string",
+                      "example": "3.35"
+                    }
+                  },
+                  "nullable": true
+                },
+                "location": {
+                  "$ref": "#/components/schemas/Location"
+                },
+                "dates": {
+                  "type": "object",
+                  "properties": {
+                    "completionDate": {
+                      "type": "string",
+                      "format": "date",
+                      "example": "2021-05-01"
+                    },
+                    "isCurrent": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "workExperience": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "jobTitle": {
+                  "type": "string",
+                  "example": "Product Design Engineer Intern"
+                },
+                "organization": {
+                  "type": "string",
+                  "example": "Company Power Generation"
+                },
+                "location": {
+                  "$ref": "#/components/schemas/Location"
+                },
+                "dates": {
+                  "type": "object",
+                  "nullable": true,
+                  "properties": {
+                    "startDate": {
+                      "type": "string",
+                      "format": "date",
+                      "example": "2018-05-01"
+                    },
+                    "endDate": {
+                      "type": "string",
+                      "format": "date",
+                      "example": "2018-08-01"
+                    },
+                    "monthsInPosition": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "isCurrent": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "MATLAB",
+              "Product Design",
+              "Mechanical Engineering",
+              "Drawing",
+              "Mechanics",
+              "LabVIEW"
+            ]
+          },
+          "skillsDetails": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "Applied Mechanics"
+                },
+                "lastUsed": {
+                  "nullable": true,
+                  "type": "string",
+                  "example": "2012-01-01"
+                },
+                "numberOfMonths": {
+                  "type": "integer",
+                  "nullable": true,
+                  "example": 12
+                },
+                "type": {
+                  "type": "string",
+                  "example": "hard_skill"
+                },
+                "sources": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "section": {
+                        "type": "string",
+                        "example": "WorkExperience"
+                      },
+                      "postition": {
+                        "type": "integer",
+                        "example": 0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "certifications": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "Certificate in AWS"
+            ]
+          },
+          "publications": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "Tim Smith et al., Investigations of nanoparticles in the pathology of the human eye, Cell 2014"
+            ]
+          },
+          "referees": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "Stephen Smith",
+                  "nullable": true
+                },
+                "text": {
+                  "type": "string",
+                  "example": "Stephen Smith, Team Member/Mentor, Company Power Generation: stephen.smith@company.com"
+                },
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "example": "stephen.smith@company.com",
+                  "nullable": true
+                },
+                "number": {
+                  "type": "string",
+                  "example": "+61490667215",
+                  "nullable": true
+                }
+              }
+            }
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sectionType": {
+                  "type": "string",
+                  "example": "PersonalDetails"
+                },
+                "bbox": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "example": [
+                    0.0,
+                    36.392,
+                    612.0,
+                    111.056
+                  ],
+                  "minItems": 4,
+                  "maxItems": 4
+                },
+                "pageIndex": {
+                  "type": "integer"
+                },
+                "text": {
+                  "type": "string",
+                  "example": "<All text from the {sectionType} section>"
+                }
+              }
+            }
+          },
+          "head_shot": {
+            "type": "string",
+            "format": "byte",
+            "description": "base64 encoded string"
+          }
+        }
+      },
+      "RedactedDocumentData": {
+        "type": "object",
+        "nullable": true,
+        "properties": {
+          "redactedPdf": {
+            "type": "string",
+            "format": "url",
+            "example": "https://api-data.affinda.com/media/redacted_documents/resume_redacted.pdf"
+          }
+        }
+      },
+      "ReformattedDocumentData": {
+        "type": "object",
+        "nullable": true,
+        "properties": {
+          "reformattedFile": {
+            "type": "string",
+            "format": "url",
+            "example": "https://api-data.affinda.com/media/redacted_documents/resume_reformatted.pdf"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "nullable": true,
+            "example": null
+          },
+          "message": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          }
+        }
+      },
+      "Meta": {
+        "type": "object",
+        "required": [
+          "identifier",
+          "ready",
+          "readyDt",
+          "failed",
+          "user",
+          "expiryTime"
+        ],
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "example": "EUglqBoT"
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "readyDt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2020-12-10T01:43:32.276724Z",
+            "nullable": true
+          },
+          "failed": {
+            "type": "boolean"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "fileName": {
+            "type": "string",
+            "nullable": true,
+            "example": "file_name.pdf"
+          },
+          "expiryTime": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2022-12-13T01:43:32.276724Z",
+            "nullable": true
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "documentCount": {
+            "type": "integer"
+          },
+          "redactedDocumentCount": {
+            "type": "integer"
+          },
+          "reformattedResumeCount": {
+            "type": "integer"
+          },
+          "parsingCredits": {
+            "type": "integer"
+          },
+          "redactionCredits": {
+            "type": "integer"
+          },
+          "reformattingCredits": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Basic authentication using an API token, e.g. `{Authorization: Bearer 75z0bb4fbdf97b7e4111ff6c0015471094155f91}`\nYou can obtain an authentication token [here](https://affinda.com/resume-parser)"
+      }
+    },
+    "responses": {
+      "204NoContent": {
+        "description": "Delete successful, no content returned"
+      },
+      "404Error": {
+        "description": "Bad input parameter",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "detail": {
+                  "type": "string",
+                  "example": "Not found."
+                },
+                "statusCode": {
+                  "type": "integer",
+                  "example": "404"
+                }
+              }
+            }
+          }
+        }
+      },
+      "401Error": {
+        "description": "Authorisation error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "detail": {
+                  "type": "string",
+                  "example": "Invalid token header. No credentials provided."
+                },
+                "statusCode": {
+                  "type": "integer",
+                  "example": 401
+                }
+              }
+            }
+          }
+        }
+      },
+      "ConversionError": {
+        "description": "Content uploaded is not correct",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "fileForConversion": {
+                  "type": "string",
+                  "example": "The submitted file is empty."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "limitParam": {
+        "in": "query",
+        "name": "limit",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 300
+        },
+        "description": "The numbers of documents to return, defaults to 300."
+      },
+      "offsetParam": {
+        "in": "query",
+        "name": "offset",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "description": "The number of documents to skip before starting to collect the result set."
+      }
+    }
+  }
+}
